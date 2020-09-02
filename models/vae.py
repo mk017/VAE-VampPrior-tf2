@@ -52,8 +52,8 @@ class Vae(tf.keras.Model):
         x_logit = self.decode(z)
         cross_ent = tf.nn.sigmoid_cross_entropy_with_logits(logits=x_logit, labels=x)
         logpx_z = -tf.reduce_sum(cross_ent, axis=[1, 2, 3])
-        logpz = log_normal_pdf(z, 0., 0.)
-        logqz_x = log_normal_pdf(z, mean, logvar)
+        logpz = log_normal_pdf(z=z, z_mean=mean, z_logvar=logvar, mean=0.0, logvar=0.0, expected_value=True)
+        logqz_x = log_normal_pdf(z=z, z_mean=mean, z_logvar=logvar, mean=mean, logvar=logvar, expected_value=True)
 
         recon_loss = -tf.reduce_mean(logpx_z)
         kl_loss = -tf.reduce_mean(logpz - logqz_x)
