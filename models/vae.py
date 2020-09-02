@@ -54,7 +54,11 @@ class Vae(tf.keras.Model):
         logpx_z = -tf.reduce_sum(cross_ent, axis=[1, 2, 3])
         logpz = log_normal_pdf(z, 0., 0.)
         logqz_x = log_normal_pdf(z, mean, logvar)
-        return -tf.reduce_mean(logpx_z + logpz - logqz_x)
+
+        recon_loss = -tf.reduce_mean(logpx_z)
+        kl_loss = -tf.reduce_mean(logpz - logqz_x)
+        return recon_loss, kl_loss
+        #return -tf.reduce_mean(logpx_z + logpz - logqz_x) = (recon_loss + kl_loss)
 
     def call(self, x, **kwargs):
         mean, logvar = self.encode(x)

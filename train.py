@@ -55,7 +55,8 @@ def train_step(model, x, optimizer):
   update the model's parameters.
   """
   with tf.GradientTape() as tape:
-    loss = model.compute_loss(x)
+    recon_loss, kl_loss = model.compute_loss(x)
+    loss = recon_loss + kl_loss
   gradients = tape.gradient(loss, model.trainable_variables)
   optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
@@ -79,13 +80,16 @@ for epoch in range(1, epochs + 1):
     train_step(vae, train_x, optimizer)
   end_time = time.time()
 
-  loss = tf.keras.metrics.Mean()
+  val_kl_loss = tf.keras.metrics.Mean()
+  val_recon_loss = tf.keras.metrics.Mean()
   for test_x in test_dataset:
-    loss(vae.compute_loss(test_x))
-  elbo = -loss.result()
+    recon_loss, kl_loss = vae.compute_loss(test_x)
+    val_kl_loss(kl_loss)
+    val_recon_loss(recon_loss)
+  elbo = -val_kl_loss.result() - val_recon_loss.result()
   display.clear_output(wait=False)
-  print('Epoch: {}, Test set ELBO: {}, time elapse for current epoch: {}'
-        .format(epoch, elbo, end_time - start_time))
+  print(f'Epoch: {epoch} | Test set ELBO: {elbo:.2f}, KL div.: {val_kl_loss.result():.2f}, '
+        f'Recon loss: {val_recon_loss.result():.2f} | time: {end_time - start_time:.2f}')
 
 
 
