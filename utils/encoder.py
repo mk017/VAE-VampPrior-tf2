@@ -10,9 +10,10 @@ class Encoder(tf.keras.layers.Layer):
         self,
         input_shape,
         latent_dim,
-        mode='fc'
+        mode='fc',
+        name='encoder'
     ):
-        super(Encoder, self).__init__()
+        super(Encoder, self).__init__(name=name)
 
         if mode == 'fc':
             self.out = tf.keras.Sequential([

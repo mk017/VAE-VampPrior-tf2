@@ -3,27 +3,35 @@ import tensorflow as tf
 
 from utils.encoder import Encoder
 from utils.decoder import Decoder
-from utils.utilities import log_normal_pdf
-
+from utils.utilities import log_normal_pdf, log_sum_of_exponentials
+from utils.pseudo_inputs import TrainablePseudoInputs
 class Vae(tf.keras.Model):
     def __init__(
             self,
             input_shape,
             latent_dim,
-            mode="fc"
+            layer_type='fc',
+            vampprior=False,
+            expected_value=False
     ):
         super(Vae, self).__init__()
         self.latent_dim = latent_dim
+        self.vampprior = vampprior
+        self.expected_value = expected_value
+
         self.encoder = Encoder(
             input_shape=input_shape,
             latent_dim=latent_dim,
-            mode=mode
+            mode=layer_type
         )
         self.decoder = Decoder(
             input_shape=input_shape,
             latent_dim=latent_dim,
-            mode=mode
+            mode=layer_type
         )
+        if self.vampprior:
+            self.batch_size_u = 500
+            self.pseudo_inputs_layer = TrainablePseudoInputs(self.batch_size_u)
 
     def encode(self, x):
         mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
@@ -47,14 +55,37 @@ class Vae(tf.keras.Model):
         return self.decode(eps, apply_sigmoid=True)
 
     def compute_loss(self, x):
-        mean, logvar = self.encode(x)
-        z = self.reparameterize(mean, logvar)
+        # Encoding
+        q_mean, q_logvar = self.encode(x)
+        z = self.reparameterize(q_mean, q_logvar)
+
+        # Reconstruction
         x_logit = self.decode(z)
         cross_ent = tf.nn.sigmoid_cross_entropy_with_logits(logits=x_logit, labels=x)
         logpx_z = -tf.reduce_sum(cross_ent, axis=[1, 2, 3])
-        logpz = log_normal_pdf(z=z, z_mean=mean, z_logvar=logvar, mean=0.0, logvar=0.0, expected_value=True)
-        logqz_x = log_normal_pdf(z=z, z_mean=mean, z_logvar=logvar, mean=mean, logvar=logvar, expected_value=True)
 
+        # Prior
+        if self.vampprior:
+            pseudo_inputs = self.pseudo_inputs_layer(x)
+            p_mean, p_logvar = self.encode(pseudo_inputs)
+            logpz = log_normal_pdf(
+                z=tf.expand_dims(z, axis=1),
+                z_mean=tf.expand_dims(q_mean, axis=1),
+                z_logvar=tf.expand_dims(q_logvar, axis=1),
+                mean=tf.expand_dims(p_mean, axis=0),
+                logvar=tf.expand_dims(p_logvar, axis=0),
+                expected_value=self.expected_value,
+                axis=2
+            )
+            # marginalize over batch_size_u
+            logpz = log_sum_of_exponentials(logpz, axis=1) - np.log(self.batch_size_u)
+        else:
+            logpz = log_normal_pdf(z=z, z_mean=q_mean, z_logvar=q_logvar, mean=0.0, logvar=0.0, expected_value=self.expected_value)
+
+        # Posterior
+        logqz_x = log_normal_pdf(z=z, z_mean=q_mean, z_logvar=q_logvar, mean=q_mean, logvar=q_logvar, expected_value=self.expected_value)
+
+        # Compute loss
         recon_loss = -tf.reduce_mean(logpx_z)
         kl_loss = -tf.reduce_mean(logpz - logqz_x)
         return recon_loss, kl_loss

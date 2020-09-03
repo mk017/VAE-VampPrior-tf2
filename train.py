@@ -9,19 +9,20 @@ from IPython import display
 import pdb
 
 # Training
-epochs = 2
+epochs = 4
 batch_size = 32
 
 # Data and preprocessing
-apply_filter = True
+apply_filter = False
 input_shape = (28, 28, 1)
 train_size = 60000
 test_size = 10000
 
 # Model architecture
 latent_dim = 64
-mode = "cnn"
-
+layer_type = 'fc'
+prior = 'vamp'
+sample_mode = 'expectation'
 
 # Load the dataset
 (train_images, _), (test_images, _) = tf.keras.datasets.fashion_mnist.load_data()
@@ -44,7 +45,9 @@ test_dataset = (tf.data.Dataset.from_tensor_slices(
 vae = Vae(
     input_shape=input_shape,
     latent_dim=latent_dim,
-    mode=mode
+    layer_type=layer_type,
+    vampprior=(prior == 'vamp'),
+    expected_value=(sample_mode == 'expectation')
 )
 
 @tf.function
@@ -104,7 +107,7 @@ for i in range(n):
     # display original
     ax = plt.subplot(2, n, i + 1)
     plt.imshow(np.squeeze(test_images[i], axis=2))
-    plt.title("original")
+    plt.title('original')
     plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
@@ -112,8 +115,9 @@ for i in range(n):
     # display reconstruction
     ax = plt.subplot(2, n, i + 1 + n)
     plt.imshow(np.squeeze(decoded_imgs[i], axis=2))
-    plt.title("reconstructed")
+    plt.title('reconstructed')
     plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
+plt.savefig(f'{layer_type}_{prior}_{sample_mode}_epochs_{epochs}.png')
 plt.show()
