@@ -122,5 +122,5 @@ for i in range(n):
     plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-plt.savefig(f'img/{layer_type}_{prior}_{sample_mode}_epochs_{epochs}.png')
+plt.savefig(f'img/{model}_{layer_type}_{prior}_{sample_mode}_epochs_{epochs}.png')
 plt.show()
