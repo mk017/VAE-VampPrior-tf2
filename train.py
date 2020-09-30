@@ -20,9 +20,10 @@ test_size = 10000
 
 # Model architecture
 latent_dim = 64
-layer_type = 'fc'
+model = 'hvae'
 prior = 'vamp'
-sample_mode = 'expectation'
+layer_type = 'cnn'
+sample_mode = 'mc'
 
 # Load the dataset
 (train_images, _), (test_images, _) = tf.keras.datasets.fashion_mnist.load_data()
@@ -46,6 +47,7 @@ vae = Vae(
     input_shape=input_shape,
     latent_dim=latent_dim,
     layer_type=layer_type,
+    hierarchical=(model == 'hvae'),
     vampprior=(prior == 'vamp'),
     expected_value=(sample_mode == 'expectation')
 )
@@ -99,6 +101,7 @@ for epoch in range(1, epochs + 1):
 # Evaluate trained VAE
 test_images = preprocess_images(test_images)
 decoded_imgs = vae(test_images).numpy()
+pseudo_inputs = vae.pseudo_inputs_layer(test_images).numpy()
 
 # Plot evaluation
 n = 10
@@ -119,5 +122,5 @@ for i in range(n):
     plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-plt.savefig(f'{layer_type}_{prior}_{sample_mode}_epochs_{epochs}.png')
+plt.savefig(f'img/{layer_type}_{prior}_{sample_mode}_epochs_{epochs}.png')
 plt.show()
