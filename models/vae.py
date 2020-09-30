@@ -4,7 +4,9 @@ import tensorflow as tf
 from utils.encoder import Encoder
 from utils.decoder import Decoder
 from utils.utilities import log_normal_pdf, log_sum_of_exponentials
-from utils.pseudo_inputs import TrainablePseudoInputs
+from utils.pseudo_inputs import TrainablePseudoInputs, SampledPseudoInputsInitializer
+
+
 class Vae(tf.keras.Model):
     def __init__(
             self,
