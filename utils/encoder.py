@@ -47,6 +47,46 @@ class Encoder(tf.keras.layers.Layer):
                 ),
                 tf.keras.layers.Flatten(),
             ])
+        elif mode == 'bigcnn':
+            self.layers = tf.keras.Sequential([
+                tf.keras.layers.InputLayer(input_shape=input_shape),
+                tf.keras.layers.Conv2D(
+                    filters=32,
+                    kernel_size=7,
+                    strides=(1, 1),
+                    activation='relu',
+                    padding='same'
+                ),
+                tf.keras.layers.Conv2D(
+                    filters=32,
+                    kernel_size=3,
+                    strides=(2, 2),
+                    activation='relu',
+                    padding='same'
+                ),
+                tf.keras.layers.Conv2D(
+                    filters=64,
+                    kernel_size=5,
+                    strides=(1, 1),
+                    activation='relu',
+                    padding='same'
+                ),
+                tf.keras.layers.Conv2D(
+                    filters=64,
+                    kernel_size=3,
+                    strides=(2, 2),
+                    activation='relu',
+                    padding='same'
+                ),
+                tf.keras.layers.Conv2D(
+                    filters=6,
+                    kernel_size=3,
+                    strides=(1, 1),
+                    activation='relu',
+                    padding='same'
+                ),
+                tf.keras.layers.Flatten(),
+            ])
 
         self.distribution_parameter = tf.keras.layers.Dense(2 * latent_dim, activation='linear')
 

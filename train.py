@@ -22,7 +22,7 @@ test_size = 10000
 latent_dim = 64
 model = 'hvae'
 prior = 'vamp'
-layer_type = 'cnn'
+layer_type = 'bigcnn'
 sample_mode = 'mc'
 
 # Load the dataset
