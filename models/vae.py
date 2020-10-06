@@ -16,7 +16,8 @@ class Vae(tf.keras.Model):
             layer_type='fc',
             vampprior=False,
             expected_value=False,
-            hidden_dim=300
+            hidden_dim=300,
+            data_set='mnist'
     ):
         super(Vae, self).__init__()
         self.latent_dim = latent_dim
@@ -55,7 +56,7 @@ class Vae(tf.keras.Model):
         )
         if self.vampprior:
             self.batch_size_u = 500
-            self.pseudo_inputs_layer = TrainablePseudoInputs(self.batch_size_u)
+            self.pseudo_inputs_layer = TrainablePseudoInputs(self.batch_size_u, data_set)
 
     def encode(self, x):
         mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)

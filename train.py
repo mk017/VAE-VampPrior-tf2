@@ -1,6 +1,10 @@
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+
+import sys
+import json
 
 from models.vae import Vae
 from utils.utilities import preprocess_images
@@ -11,6 +15,7 @@ import pdb
 # Training
 epochs = 4
 batch_size = 32
+data_set = 'mnist'
 
 # Data and preprocessing
 apply_filter = False
@@ -26,7 +31,10 @@ layer_type = 'bigcnn'
 sample_mode = 'mc'
 
 # Load the dataset
-(train_images, _), (test_images, _) = tf.keras.datasets.fashion_mnist.load_data()
+if data_set == 'fashion_mnist':
+    (train_images, _), (test_images, y_test) = tf.keras.datasets.fashion_mnist.load_data()
+elif data_set == 'mnist':
+    (train_images, _), (test_images, y_test) = tf.keras.datasets.mnist.load_data()
 
 train_dataset = (tf.data.Dataset.from_tensor_slices(
     preprocess_images(
@@ -49,7 +57,8 @@ vae = Vae(
     layer_type=layer_type,
     hierarchical=(model == 'hvae'),
     vampprior=(prior == 'vamp'),
-    expected_value=(sample_mode == 'expectation')
+    expected_value=(sample_mode == 'expectation'),
+    data_set=data_set
 )
 
 @tf.function

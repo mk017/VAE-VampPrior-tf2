@@ -5,9 +5,14 @@ import pdb
 
 
 class SampledPseudoInputsInitializer(tf.keras.initializers.Initializer):
-    def __init__(self, n_samples):
+    def __init__(self, n_samples, data_set):
         self.n_samples = n_samples
-        (train_images, _), (test_images, _) = tf.keras.datasets.fashion_mnist.load_data()
+        # Load the dataset
+        if data_set == 'fashion_mnist':
+            (train_images, _), (_, _) = tf.keras.datasets.fashion_mnist.load_data()
+        elif data_set == 'mnist':
+            (train_images, _), (_, _) = tf.keras.datasets.mnist.load_data()
+
         train_images = preprocess_images(train_images, apply_filter=False)
         total_samples = train_images.shape[0]
         self.init_pseudo_inputs = train_images[np.random.choice(total_samples, n_samples), :, :, :]
