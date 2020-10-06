@@ -13,7 +13,7 @@ from IPython import display
 import pdb
 
 # Training
-epochs = 4
+epochs = 2
 batch_size = 32
 data_set = 'mnist'
 
@@ -24,11 +24,16 @@ train_size = 60000
 test_size = 10000
 
 # Model architecture
-latent_dim = 64
-model = 'hvae'
-prior = 'vamp'
-layer_type = 'bigcnn'
+latent_dim = 2
+model = 'vae'
+prior = 'standard'
+layer_type = 'fc'
 sample_mode = 'mc'
+
+training_id = f'{data_set}_{model}_{layer_type}_{prior}_{sample_mode}_epochs_{epochs}'
+
+f = open(f'log/{training_id}.out', 'w')
+sys.stdout = f
 
 # Load the dataset
 if data_set == 'fashion_mnist':
@@ -88,9 +93,13 @@ random_vector_for_generation = tf.random.normal(
 import time
 optimizer = tf.keras.optimizers.Adam(1e-4)
 
+validation_log = {
+    'val_recon_loss': [],
+    'val_kl_loss': [],
+}
 for epoch in range(1, epochs + 1):
   start_time = time.time()
-  for train_x in train_dataset:
+  for step, train_x in tqdm(enumerate(train_dataset), total=int(train_size / batch_size)):
     train_step(vae, train_x, optimizer)
   end_time = time.time()
 
@@ -102,9 +111,14 @@ for epoch in range(1, epochs + 1):
     val_recon_loss(recon_loss)
   elbo = -val_kl_loss.result() - val_recon_loss.result()
   display.clear_output(wait=False)
-  print(f'Epoch: {epoch} | Test set ELBO: {elbo:.2f}, KL div.: {val_kl_loss.result():.2f}, '
+  print(f'Epoch: {epoch} | Val set ELBO: {elbo:.2f}, KL div.: {val_kl_loss.result():.2f}, '
         f'Recon loss: {val_recon_loss.result():.2f} | time: {end_time - start_time:.2f}')
-
+  # logging
+  #pdb.set_trace()
+  validation_log['val_recon_loss'].append(str(val_recon_loss.result().numpy()))
+  validation_log['val_kl_loss'].append(str(val_kl_loss.result().numpy()))
+with open(f'log/{training_id}', 'w') as file:
+    file.write(json.dumps(validation_log))
 
 
 # Evaluate trained VAE
@@ -140,5 +154,7 @@ for i in range(n):
     plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-plt.savefig(f'img/{model}_{layer_type}_{prior}_{sample_mode}_epochs_{epochs}.png')
+plt.savefig(f'img/{training_id}.png')
 plt.show()
+
+f.close()
