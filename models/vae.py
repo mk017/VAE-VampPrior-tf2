@@ -132,6 +132,15 @@ class Vae(tf.keras.Model):
         return recon_loss, kl_loss
         #return -tf.reduce_mean(logpx_z + logpz - logqz_x) = (recon_loss + kl_loss)
 
+    def predict_embedding(self, x):
+        mean_z, logvar_z = self.encode(x)
+        z = self.reparameterize(mean_z, logvar_z)
+        if self.hierarchical:
+            q_mean_z0, q_logvar_z0 = tf.split(self.encoder_z0(x, z), num_or_size_splits=2, axis=1)
+            z0 = self.reparameterize(q_mean_z0, q_logvar_z0)
+            return tf.concat([z, z0], axis=1)
+        return z
+
     def call(self, x, **kwargs):
         mean_z, logvar_z = self.encode(x)
         z = self.reparameterize(mean_z, logvar_z)

@@ -101,7 +101,16 @@ for epoch in range(1, epochs + 1):
 # Evaluate trained VAE
 test_images = preprocess_images(test_images)
 decoded_imgs = vae(test_images).numpy()
-pseudo_inputs = vae.pseudo_inputs_layer(test_images).numpy()
+#pseudo_inputs = vae.pseudo_inputs_layer(test_images).numpy()
+
+embedding = vae.predict_embedding(test_images)
+
+# Plot umap
+plt.scatter(embedding[:, 0], embedding[:, 1], c=y_test, cmap='Spectral', s=5)
+plt.gca().set_aspect('equal', 'datalim')
+plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
+plt.title(f'2D-latent space of {data_set}', fontsize=24)
+plt.savefig(f'img/{training_id}_embedding.png')
 
 # Plot evaluation
 n = 10
