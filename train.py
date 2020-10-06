@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 import sys
 import json
+import argparse
 
 from models.vae import Vae
 from utils.utilities import preprocess_images
@@ -12,10 +13,32 @@ from utils.utilities import preprocess_images
 from IPython import display
 import pdb
 
+
+def parse_args():
+    desc = "Tensorflow 2.0 implementation of a VAE with a VampPrior"
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('--vae_type', type=str, default='vae',
+                        help='Type of autoencoder: [vae, hvae]')
+    parser.add_argument('--prior', type=str, default='standard',
+                        help='Type of prior: [standard, vamp]')
+    parser.add_argument('--epochs', type=int, default=30,
+                        help='Number of train set run-throughs.')
+    parser.add_argument('--batch_size', type=int, default=128,
+                        help='Batch size for SGD.')
+    parser.add_argument('--data_set', type=str, default='mnist',
+                        help='Data set: [mnist, fashion_mnist]')
+    parser.add_argument('--latent_dim', type=int, default=2,
+                        help='Dimension of the latent space or bottleneck.')
+    parser.add_argument('--layer_type', type=str, default='cnn',
+                        help='Layer type used in encoder and decoder: [fc, cnn]')
+    parser.add_argument('--sample_mode', type=str, default='mc',
+                        help='Mode to estimate KL divergence: [mc, expectation]')
+    return parser.parse_args()
+
+
+args = parse_args()
+print(args)
 # Training
-epochs = 2
-batch_size = 32
-data_set = 'mnist'
 
 # Data and preprocessing
 apply_filter = False
@@ -24,21 +47,16 @@ train_size = 60000
 test_size = 10000
 
 # Model architecture
-latent_dim = 2
-model = 'vae'
-prior = 'standard'
-layer_type = 'fc'
-sample_mode = 'mc'
 
-training_id = f'{data_set}_{model}_{layer_type}_{prior}_{sample_mode}_epochs_{epochs}'
+training_id = f'{args.data_set}_{args.vae_type}_{args.layer_type}_{args.prior}_{args.sample_mode}_epochs_{args.epochs}'
 
 f = open(f'log/{training_id}.out', 'w')
 sys.stdout = f
 
 # Load the dataset
-if data_set == 'fashion_mnist':
+if args.data_set == 'fashion_mnist':
     (train_images, _), (test_images, y_test) = tf.keras.datasets.fashion_mnist.load_data()
-elif data_set == 'mnist':
+elif args.data_set == 'mnist':
     (train_images, _), (test_images, y_test) = tf.keras.datasets.mnist.load_data()
 
 train_dataset = (tf.data.Dataset.from_tensor_slices(
@@ -46,24 +64,24 @@ train_dataset = (tf.data.Dataset.from_tensor_slices(
         train_images,
         apply_filter=apply_filter
     )
-).shuffle(train_size).batch(batch_size))
+).shuffle(train_size).batch(args.batch_size))
 
 test_dataset = (tf.data.Dataset.from_tensor_slices(
     preprocess_images(
         test_images,
         apply_filter=apply_filter
     )
-).shuffle(test_size).batch(batch_size))
+).shuffle(test_size).batch(args.batch_size))
 
 # VAE class
 vae = Vae(
     input_shape=input_shape,
-    latent_dim=latent_dim,
-    layer_type=layer_type,
-    hierarchical=(model == 'hvae'),
-    vampprior=(prior == 'vamp'),
-    expected_value=(sample_mode == 'expectation'),
-    data_set=data_set
+    latent_dim=args.latent_dim,
+    layer_type=args.layer_type,
+    hierarchical=(args.vae_type == 'hvae'),
+    vampprior=(args.prior == 'vamp'),
+    expected_value=(args.sample_mode == 'expectation'),
+    data_set=args.data_set
 )
 
 @tf.function
@@ -85,7 +103,7 @@ num_examples_to_generate = 16
 # keeping the random vector constant for generation (prediction) so
 # it will be easier to see the improvement.
 random_vector_for_generation = tf.random.normal(
-    shape=[num_examples_to_generate, latent_dim]
+    shape=[num_examples_to_generate, args.latent_dim]
 )
 
 
@@ -97,9 +115,9 @@ validation_log = {
     'val_recon_loss': [],
     'val_kl_loss': [],
 }
-for epoch in range(1, epochs + 1):
+for epoch in range(1, args.epochs + 1):
   start_time = time.time()
-  for step, train_x in tqdm(enumerate(train_dataset), total=int(train_size / batch_size)):
+  for step, train_x in tqdm(enumerate(train_dataset), total=int(train_size / args.batch_size)):
     train_step(vae, train_x, optimizer)
   end_time = time.time()
 
@@ -132,7 +150,7 @@ embedding = vae.predict_embedding(test_images)
 plt.scatter(embedding[:, 0], embedding[:, 1], c=y_test, cmap='Spectral', s=5)
 plt.gca().set_aspect('equal', 'datalim')
 plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
-plt.title(f'2D-latent space of {data_set}', fontsize=24)
+plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
 plt.savefig(f'img/{training_id}_embedding.png')
 
 # Plot evaluation
