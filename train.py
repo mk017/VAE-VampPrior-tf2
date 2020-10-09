@@ -10,7 +10,6 @@ import argparse
 from models.vae import Vae
 from utils.utilities import preprocess_images
 
-from IPython import display
 import pdb
 
 
@@ -29,7 +28,7 @@ def parse_args():
                         help='Data set: [mnist, fashion_mnist]')
     parser.add_argument('--latent_dim', type=int, default=2,
                         help='Dimension of the latent space or bottleneck.')
-    parser.add_argument('--layer_type', type=str, default='cnn',
+    parser.add_argument('--layer_type', type=str, default='fc',
                         help='Layer type used in encoder and decoder: [fc, cnn]')
     parser.add_argument('--sample_mode', type=str, default='mc',
                         help='Mode to estimate KL divergence: [mc, expectation]')
@@ -128,7 +127,6 @@ for epoch in range(1, args.epochs + 1):
     val_kl_loss(kl_loss)
     val_recon_loss(recon_loss)
   elbo = -val_kl_loss.result() - val_recon_loss.result()
-  display.clear_output(wait=False)
   print(f'Epoch: {epoch} | Val set ELBO: {elbo:.2f}, KL div.: {val_kl_loss.result():.2f}, '
         f'Recon loss: {val_recon_loss.result():.2f} | time: {end_time - start_time:.2f}')
   # logging
