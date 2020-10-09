@@ -38,7 +38,7 @@ class Vae(tf.keras.Model):
             self.encoder_z0 = Encoder(
                 input_shape=input_shape,
                 latent_dim=int(latent_dim/2),
-                mode=layer_type,
+                mode=layer_type + '_z0',
                 conditional_on_other_z=True,
                 name='encoder_z0'
             )
@@ -46,7 +46,7 @@ class Vae(tf.keras.Model):
                 tf.keras.layers.InputLayer(input_shape=int(latent_dim/2)),
                 tf.keras.layers.Dense(hidden_dim, activation='relu'),
                 tf.keras.layers.Dense(hidden_dim, activation='relu'),
-                tf.keras.layers.Dense(latent_dim, activation='relu'),  # mean and logvar each latent_dim/2
+                tf.keras.layers.Dense(latent_dim, activation='linear'),  # mean and logvar each latent_dim/2
             ])
 
         self.decoder = Decoder(
@@ -114,24 +114,17 @@ class Vae(tf.keras.Model):
         else:
             logpz = log_normal_pdf(z=z, z_mean=q_mean, z_logvar=q_logvar, mean=0.0, logvar=0.0, expected_value=self.expected_value)
 
+        logqz_x = log_normal_pdf(z=z, z_mean=q_mean, z_logvar=q_logvar, mean=q_mean, logvar=q_logvar, expected_value=self.expected_value)
+
         if self.hierarchical:
-            # import pdb
-            # pdb.set_trace()
             p_mean_z0, p_logvar_z0 = tf.split(self.p_z0(z), num_or_size_splits=2, axis=1)
             logpz0 = log_normal_pdf(z=z0, z_mean=q_mean_z0, z_logvar=q_logvar_z0, mean=p_mean_z0, logvar=p_logvar_z0, expected_value=self.expected_value)
-
-        # Posterior
-        logqz_x = log_normal_pdf(z=z, z_mean=q_mean, z_logvar=q_logvar, mean=q_mean, logvar=q_logvar, expected_value=self.expected_value)
-        if self.hierarchical:
             logqz0_x = log_normal_pdf(z=z0, z_mean=q_mean_z0, z_logvar=q_logvar_z0, mean=q_mean_z0, logvar=q_logvar_z0, expected_value=self.expected_value)
-        # Compute loss
-        recon_loss = -tf.reduce_mean(logpx_z)
-        if self.hierarchical:
             kl_loss = -tf.reduce_mean(logpz + logpz0 - logqz_x - logqz0_x)
         else:
             kl_loss = -tf.reduce_mean(logpz - logqz_x)
+        recon_loss = -tf.reduce_mean(logpx_z)
         return recon_loss, kl_loss
-        #return -tf.reduce_mean(logpx_z + logpz - logqz_x) = (recon_loss + kl_loss)
 
     def predict_embedding(self, x):
         mean_z, logvar_z = self.encode(x)

@@ -49,8 +49,6 @@ test_size = 10000
 
 training_id = f'{args.data_set}_{args.vae_type}_{args.layer_type}_{args.prior}_{args.sample_mode}_epochs_{args.epochs}'
 
-f = open(f'log/{training_id}.out', 'w')
-sys.stdout = f
 
 # Load the dataset
 if args.data_set == 'fashion_mnist':
@@ -130,7 +128,6 @@ for epoch in range(1, args.epochs + 1):
   print(f'Epoch: {epoch} | Val set ELBO: {elbo:.2f}, KL div.: {val_kl_loss.result():.2f}, '
         f'Recon loss: {val_recon_loss.result():.2f} | time: {end_time - start_time:.2f}')
   # logging
-  #pdb.set_trace()
   validation_log['val_recon_loss'].append(str(val_recon_loss.result().numpy()))
   validation_log['val_kl_loss'].append(str(val_kl_loss.result().numpy()))
 with open(f'log/{training_id}', 'w') as file:
@@ -172,5 +169,3 @@ for i in range(n):
     ax.get_yaxis().set_visible(False)
 plt.savefig(f'img/{training_id}.png')
 plt.show()
-
-f.close()
