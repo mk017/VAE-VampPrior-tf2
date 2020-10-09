@@ -22,16 +22,17 @@ class SampledPseudoInputsInitializer(tf.keras.initializers.Initializer):
 
 
 class TrainablePseudoInputs(tf.keras.layers.Layer):
-    def __init__(self, batch_size_u, activation="hard_sigmoid", **kwargs):
+    def __init__(self, batch_size_u, data_set="mnist", activation="hard_sigmoid", **kwargs):
         self.batch_size_u = batch_size_u
         self.pseudo_inputs = None
         super().__init__(**kwargs)
         self.activation = tf.keras.activations.get(activation)
+        self.data_set = data_set
 
     def build(self, input_shape):
         self.pseudo_inputs = self.add_weight(
             shape=(tuple([self.batch_size_u] + input_shape[1:].as_list())),
-            initializer=SampledPseudoInputsInitializer(self.batch_size_u),
+            initializer=SampledPseudoInputsInitializer(self.batch_size_u, self.data_set),
             #initializer=tf.random_normal_initializer(mean=-0.05, stddev=0.01),
             dtype=tf.float32,
             name='u'
