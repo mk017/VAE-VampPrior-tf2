@@ -29,10 +29,10 @@ def parse_args():
                         help='Data set: [mnist, fashion_mnist]')
     parser.add_argument('--latent_dim', type=int, default=2,
                         help='Dimension of the latent space or bottleneck.')
-    parser.add_argument('--layer_type', type=str, default='fc',
-                        help='Layer type used in encoder and decoder: [fc, cnn]')
-    parser.add_argument('--sample_mode', type=str, default='mc',
-                        help='Mode to estimate KL divergence: [mc, expectation]')
+    parser.add_argument('--factor', type=float, default=1,
+                        help='Factor that determines the number of filters.')
+    # parser.add_argument('--sample_mode', type=str, default='mc',
+    #                     help='Mode to estimate KL divergence: [mc, expectation]')
     return parser.parse_args()
 
 
@@ -44,7 +44,7 @@ apply_filter = False
 input_shape = (28, 28, 1)
 train_size = 60000
 val_size = 10000
-training_id = f'{args.data_set}_{args.model}_{args.layer_type}_{args.prior}_{args.sample_mode}_ldim{args.latent_dim}_epochs{args.epochs}'
+training_id = f'{args.data_set}_{args.model}_{args.prior}_bs{args.batch_size}_dim{args.latent_dim}_factor{args.factor}_epochs{args.epochs}'
 
 # Load the dataset
 if args.data_set == 'fashion_mnist':
@@ -71,10 +71,9 @@ val_dataset = (tf.data.Dataset.from_tensor_slices(
 vae = Vae(
     input_shape=input_shape,
     latent_dim=args.latent_dim,
-    layer_type=args.layer_type,
+    filter_factor=args.factor,
     hierarchical=(args.model == 'hvae'),
     vampprior=(args.prior == 'vamp'),
-    expected_value=(args.sample_mode == 'expectation'),
     data_set=args.data_set
 )
 
@@ -136,10 +135,10 @@ for epoch in range(1, args.epochs + 1):
         f'Recon loss: {val_recon_loss.result():.2f} | time: {end_time - start_time:.2f}')
 
     # Log results and reset metrics
-    results['train_kl_loss'].append(train_kl_loss.result())
-    results['train_recon_loss'].append(train_recon_loss.result())
-    results['val_kl_loss'].append(val_kl_loss.result())
-    results['val_recon_loss'].append(val_recon_loss.result())
+    results['train_kl_loss'].append(train_kl_loss.result().numpy())
+    results['train_recon_loss'].append(train_recon_loss.result().numpy())
+    results['val_kl_loss'].append(val_kl_loss.result().numpy())
+    results['val_recon_loss'].append(val_recon_loss.result().numpy())
 
     train_kl_loss.reset_states()
     train_recon_loss.reset_states()
@@ -162,7 +161,7 @@ plt.scatter(embedding[:, 0], embedding[:, 1], c=y_val, cmap='Spectral', s=5)
 plt.gca().set_aspect('equal', 'datalim')
 plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
 plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
-plt.savefig(f'img/{training_id}_embedding.png')
+plt.savefig(f'img/{args.data_set}/{training_id}_embedding.png')
 
 # Plot evaluation
 n = 10
@@ -183,5 +182,5 @@ for i in range(n):
     plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-plt.savefig(f'img/{training_id}.png')
+plt.savefig(f'img/{args.data_set}/{training_id}.png')
 plt.show()

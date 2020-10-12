@@ -12,10 +12,10 @@ class Vae(tf.keras.Model):
             self,
             input_shape,
             latent_dim,
+            filter_factor,
             hierarchical=False,
-            layer_type='fc',
             vampprior=False,
-            expected_value=False,
+            expected_value=True,
             hidden_dim=300,
             data_set='mnist'
     ):
@@ -31,14 +31,14 @@ class Vae(tf.keras.Model):
         self.encoder = Encoder(
             input_shape=input_shape,
             latent_dim=latent_dim if not hierarchical else int(latent_dim/2),
-            mode=layer_type,
+            factor=filter_factor,
             name='encoder_z'
         )
         if hierarchical:
             self.encoder_z0 = Encoder(
                 input_shape=input_shape,
                 latent_dim=int(latent_dim/2),
-                mode=layer_type + '_z0',
+                factor=filter_factor,
                 conditional_on_other_z=True,
                 name='encoder_z0'
             )
@@ -52,7 +52,7 @@ class Vae(tf.keras.Model):
         self.decoder = Decoder(
             input_shape=input_shape,
             latent_dim=latent_dim,
-            mode=layer_type
+            factor=filter_factor
         )
         if self.vampprior:
             self.batch_size_u = 500

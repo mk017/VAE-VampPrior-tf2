@@ -9,62 +9,26 @@ class Encoder(tf.keras.layers.Layer):
         self,
         input_shape,
         latent_dim,
-        hidden_dim=256,
-        mode='fc',
+        factor=1,
         conditional_on_other_z=False,
         name='encoder'
     ):
         super(Encoder, self).__init__(name=name)
 
-        if mode[:2] == 'fc':
-            self.layers = tf.keras.Sequential([
-                tf.keras.layers.InputLayer(input_shape=input_shape),
-                tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(200, activation='relu'),
-                tf.keras.layers.Dense(100, activation='relu'),
-            ])
-
-        elif mode == 'cnn':
-            self.layers = tf.keras.Sequential([
-                tf.keras.layers.InputLayer(input_shape=input_shape),
-                tf.keras.layers.Conv2D(filters=32, kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=6, kernel_size=3, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Flatten(),
-            ])
-        elif mode == 'cnn_z0':
-            self.layers = tf.keras.Sequential([
-                tf.keras.layers.InputLayer(input_shape=input_shape),
-                tf.keras.layers.Conv2D(filters=32, kernel_size=7, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=64, kernel_size=5, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=6, kernel_size=3, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Flatten(),
-            ])
-
-        elif mode == 'bigcnn':
-            self.layers = tf.keras.Sequential([
-                tf.keras.layers.InputLayer(input_shape=input_shape),
-                tf.keras.layers.Conv2D(filters=32, kernel_size=7, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=32, kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=64, kernel_size=5, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=6, kernel_size=3, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Flatten(),
-            ])
-        elif mode == 'bigcnn_z0':
-            self.layers = tf.keras.Sequential([
-                tf.keras.layers.InputLayer(input_shape=input_shape),
-                tf.keras.layers.Conv2D(filters=32, kernel_size=3, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=32, kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
-                tf.keras.layers.Conv2D(filters=6, kernel_size=3, strides=(1, 1), activation='relu', padding='same'),
-                tf.keras.layers.Flatten(),
-            ])
+        self.layers = tf.keras.Sequential([
+            tf.keras.layers.InputLayer(input_shape=input_shape),
+            tf.keras.layers.Conv2D(filters=int(8*factor), kernel_size=7, strides=(1, 1), activation='relu', padding='same'),
+            tf.keras.layers.Conv2D(filters=int(8*factor), kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
+            tf.keras.layers.Conv2D(filters=int(16*factor), kernel_size=5, strides=(1, 1), activation='relu', padding='same'),
+            tf.keras.layers.Conv2D(filters=int(32*factor), kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
+            tf.keras.layers.Conv2D(filters=6, kernel_size=3, strides=(1, 1), activation='relu', padding='same'),
+            tf.keras.layers.Flatten()
+        ])
 
         self.distribution_parameter = tf.keras.layers.Dense(2 * latent_dim, activation='linear')
 
         if conditional_on_other_z:
+            hidden_dim = 294  # filters * feature_map_size (6 * 7**2)
             self.conditional_layers = tf.keras.Sequential([
                 tf.keras.layers.InputLayer(input_shape=latent_dim),
                 tf.keras.layers.Dense(hidden_dim, activation='relu'),
