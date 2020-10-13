@@ -33,8 +33,10 @@ def parse_args():
                         help='Factor that determines the number of filters.')
     # parser.add_argument('--sample_mode', type=str, default='mc',
     #                     help='Mode to estimate KL divergence: [mc, expectation]')
-    parser.add_argument('--gs_key', type=int, default='Default',
+    parser.add_argument('--gs_key', type=str, default='default',
                         help='Grid search key for saving of results and images.')
+    parser.add_argument('--activation', type=str, default='relu',
+                        help='Activation function.')
     return parser.parse_args()
 
 
@@ -73,6 +75,7 @@ val_dataset = (tf.data.Dataset.from_tensor_slices(
 vae = Vae(
     input_shape=input_shape,
     latent_dim=args.latent_dim,
+    activation=args.activation,
     filter_factor=args.factor,
     hierarchical=(args.model == 'hvae'),
     vampprior=(args.prior == 'vamp'),

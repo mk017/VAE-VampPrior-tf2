@@ -15,7 +15,7 @@ class Vae(tf.keras.Model):
             filter_factor,
             hierarchical=False,
             vampprior=False,
-            expected_value=True,
+            expected_value=False,
             hidden_dim=300,
             data_set='mnist'
     ):
@@ -52,15 +52,12 @@ class Vae(tf.keras.Model):
         self.decoder = Decoder(
             input_shape=input_shape,
             latent_dim=latent_dim,
+            activation=activation,
             factor=filter_factor
         )
         if self.vampprior:
             self.batch_size_u = 500
             self.pseudo_inputs_layer = TrainablePseudoInputs(self.batch_size_u, data_set)
-
-    def encode(self, x):
-        mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
-        return mean, logvar
 
     def reparameterize(self, mean, logvar):
         eps = tf.random.normal(shape=mean.shape)
@@ -81,11 +78,11 @@ class Vae(tf.keras.Model):
 
     def compute_loss(self, x):
         # Encoding
-        q_mean, q_logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
+        q_mean, q_logvar = self.encoder(x)
         z = self.reparameterize(q_mean, q_logvar)
 
         if self.hierarchical:
-            q_mean_z0, q_logvar_z0 = tf.split(self.encoder_z0(x, z), num_or_size_splits=2, axis=1)
+            q_mean_z0, q_logvar_z0 = self.encoder_z0(x, z)
             z0 = self.reparameterize(q_mean_z0, q_logvar_z0)
 
         # Reconstruction
@@ -99,7 +96,7 @@ class Vae(tf.keras.Model):
         # Prior
         if self.vampprior:
             pseudo_inputs = self.pseudo_inputs_layer(x)
-            p_mean, p_logvar = tf.split(self.encoder(pseudo_inputs), num_or_size_splits=2, axis=1)
+            p_mean, p_logvar = self.encoder(pseudo_inputs)
             logpz = log_normal_pdf(
                 z=tf.expand_dims(z, axis=1),
                 z_mean=tf.expand_dims(q_mean, axis=1),
@@ -127,19 +124,19 @@ class Vae(tf.keras.Model):
         return recon_loss, kl_loss
 
     def predict_embedding(self, x):
-        mean_z, logvar_z = self.encode(x)
+        mean_z, logvar_z = self.encoder(x)
         z = self.reparameterize(mean_z, logvar_z)
         if self.hierarchical:
-            q_mean_z0, q_logvar_z0 = tf.split(self.encoder_z0(x, z), num_or_size_splits=2, axis=1)
+            q_mean_z0, q_logvar_z0 = self.encoder_z0(x, z)
             z0 = self.reparameterize(q_mean_z0, q_logvar_z0)
             return tf.concat([z, z0], axis=1)
         return z
 
     def call(self, x, **kwargs):
-        mean_z, logvar_z = self.encode(x)
+        mean_z, logvar_z = self.encoder(x)
         z = self.reparameterize(mean_z, logvar_z)
         if self.hierarchical:
-            q_mean_z0, q_logvar_z0 = tf.split(self.encoder_z0(x, z), num_or_size_splits=2, axis=1)
+            q_mean_z0, q_logvar_z0 = self.encoder_z0(x, z)
             z0 = self.reparameterize(q_mean_z0, q_logvar_z0)
             x_reconstructed = self.decode(tf.concat([z, z0], axis=1), apply_sigmoid=True)
         else:
