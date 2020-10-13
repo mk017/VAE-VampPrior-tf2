@@ -33,6 +33,8 @@ def parse_args():
                         help='Factor that determines the number of filters.')
     # parser.add_argument('--sample_mode', type=str, default='mc',
     #                     help='Mode to estimate KL divergence: [mc, expectation]')
+    parser.add_argument('--gs_key', type=int, default='Default',
+                        help='Grid search key for saving of results and images.')
     return parser.parse_args()
 
 
@@ -121,7 +123,7 @@ results = {
 for epoch in range(1, args.epochs + 1):
     # Train step
     start_time = time.time()
-    for step, train_x in tqdm(enumerate(train_dataset), total=int(train_size / args.batch_size)):
+    for step, train_x in enumerate(train_dataset):
         train_step(vae, train_x, optimizer)
     end_time = time.time()
 
@@ -146,7 +148,7 @@ for epoch in range(1, args.epochs + 1):
     val_recon_loss.reset_states()
 
 # Save results dictionary
-with open(f'logs/{training_id}_results.pickle', 'wb') as f:
+with open(f'gridsearch/{args.gs_key}/results/{training_id}_results.pickle', 'wb') as f:
     pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 # Evaluate trained VAE
@@ -161,7 +163,7 @@ plt.scatter(embedding[:, 0], embedding[:, 1], c=y_val, cmap='Spectral', s=5)
 plt.gca().set_aspect('equal', 'datalim')
 plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
 plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
-plt.savefig(f'img/{args.data_set}/{training_id}_embedding.png')
+plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding.png')
 
 # Plot evaluation
 n = 10
@@ -182,5 +184,5 @@ for i in range(n):
     plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-plt.savefig(f'img/{args.data_set}/{training_id}.png')
+plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}.png')
 plt.show()
