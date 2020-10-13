@@ -13,6 +13,7 @@ class Vae(tf.keras.Model):
             input_shape,
             latent_dim,
             filter_factor,
+            activation='relu',
             hierarchical=False,
             vampprior=False,
             expected_value=False,
@@ -31,6 +32,7 @@ class Vae(tf.keras.Model):
         self.encoder = Encoder(
             input_shape=input_shape,
             latent_dim=latent_dim if not hierarchical else int(latent_dim/2),
+            activation=activation,
             factor=filter_factor,
             name='encoder_z'
         )
@@ -38,6 +40,7 @@ class Vae(tf.keras.Model):
             self.encoder_z0 = Encoder(
                 input_shape=input_shape,
                 latent_dim=int(latent_dim/2),
+                activation=activation,
                 factor=filter_factor,
                 conditional_on_other_z=True,
                 name='encoder_z0'
