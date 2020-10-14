@@ -151,22 +151,38 @@ for epoch in range(1, args.epochs + 1):
     val_recon_loss.reset_states()
 
 # Save results dictionary
-with open(f'gridsearch/{args.gs_key}/results/{training_id}_results.pickle', 'wb') as f:
+with open(f'gridsearch/{args.gs_key}/results/{training_id}_history.pickle', 'wb') as f:
     pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
+with open(f'gridsearch/{args.gs_key}/results/{training_id}_args.pickle', 'wb') as f:
+    pickle.dump(vars(args), f, protocol=pickle.HIGHEST_PROTOCOL)
+
+val_images = preprocess_images(val_images)
+mean, logvar = vae.encode(val_images)
+z = vae.reparameterize(mean, logvar)
+embedding = {'z': z.numpy(), 'mean': mean.numpy(), 'logvar': logvar.numpy()}
+
+with open(f'gridsearch/{args.gs_key}/results/{training_id}_embedding.pickle', 'wb') as f:
+    pickle.dump(embedding, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 # Evaluate trained VAE
-val_images = preprocess_images(val_images)
+
 decoded_imgs = vae(val_images).numpy()
 #pseudo_inputs = vae.pseudo_inputs_layer(val_images).numpy()
 
-embedding = vae.predict_embedding(val_images)
-
-# Plot umap
-plt.scatter(embedding[:, 0], embedding[:, 1], c=y_val, cmap='Spectral', s=5)
+# Plot umap z
+plt.scatter(z[:, 0], z[:, 1], c=y_val, cmap='Spectral', s=5)
 plt.gca().set_aspect('equal', 'datalim')
 plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
 plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
-plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding.png')
+plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding_z.png')
+plt.close()
+# Plot umap mean
+plt.scatter(mean[:, 0], mean[:, 1], c=y_val, cmap='Spectral', s=5)
+plt.gca().set_aspect('equal', 'datalim')
+plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
+plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
+plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding_mean.png')
+plt.close()
 
 # Plot evaluation
 n = 10
