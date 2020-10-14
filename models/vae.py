@@ -62,6 +62,15 @@ class Vae(tf.keras.Model):
             self.batch_size_u = 500
             self.pseudo_inputs_layer = TrainablePseudoInputs(self.batch_size_u, data_set)
 
+    def encode(self, x):
+        mean, logvar = self.encoder(x)
+        if self.hierarchical:
+            z = self.reparameterize(mean, logvar)
+            mean_z0, logvar_z0 = self.encoder_z0(x, z)
+            return tf.concat([mean, mean_z0], axis=1), tf.concat([logvar, logvar_z0], axis=1)
+        else:
+            return mean, logvar
+
     def reparameterize(self, mean, logvar):
         eps = tf.random.normal(shape=mean.shape)
         return eps * tf.exp(logvar * .5) + mean
@@ -127,13 +136,8 @@ class Vae(tf.keras.Model):
         return recon_loss, kl_loss
 
     def predict_embedding(self, x):
-        mean_z, logvar_z = self.encoder(x)
-        z = self.reparameterize(mean_z, logvar_z)
-        if self.hierarchical:
-            q_mean_z0, q_logvar_z0 = self.encoder_z0(x, z)
-            z0 = self.reparameterize(q_mean_z0, q_logvar_z0)
-            return tf.concat([z, z0], axis=1)
-        return z
+        mean_z, logvar_z = self.encode(x)
+        return self.reparameterize(mean_z, logvar_z)
 
     def call(self, x, **kwargs):
         mean_z, logvar_z = self.encoder(x)
