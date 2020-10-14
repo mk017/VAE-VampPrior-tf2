@@ -22,8 +22,8 @@ class DensityLayer(tf.keras.layers.Layer):
         mean = self.dense_mean(x)
         logvar = tf.clip_by_value(
             self.dense_logvar(x),
-            clip_value_min=np.log(0.001),  # variance larger 0.001
-            clip_value_max=np.log(10.0)  # variance smaller 10.0
+            clip_value_min=-6.0,  # variance larger 0.001
+            clip_value_max=2.0  # variance smaller 10.0
         )
         return mean, logvar
 
@@ -50,7 +50,7 @@ class Encoder(tf.keras.layers.Layer):
             tf.keras.layers.Conv2D(filters=int(16*factor), kernel_size=5, strides=(1, 1), activation=activation, padding='same'),
             tf.keras.layers.Conv2D(filters=int(32*factor), kernel_size=3, strides=(2, 2), activation=activation, padding='same'),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(hidden_dim, activation='relu')
+            tf.keras.layers.Dense(hidden_dim, activation=activation)
         ])
 
         if conditional_on_other_z:
