@@ -47,8 +47,8 @@ class Vae(tf.keras.Model):
             )
             self.connect_z0 = tf.keras.Sequential([
                 tf.keras.layers.InputLayer(input_shape=int(latent_dim/2)),
-                tf.keras.layers.Dense(hidden_dim, activation='relu'),
-                tf.keras.layers.Dense(hidden_dim, activation='relu')
+                tf.keras.layers.Dense(hidden_dim, activation=activation),
+                tf.keras.layers.Dense(hidden_dim, activation=activation)
             ])
             self.p_z0 = DensityLayer(int(latent_dim/2))
 
@@ -93,18 +93,6 @@ class Vae(tf.keras.Model):
         q_mean, q_logvar = self.encoder(x)
         z = self.reparameterize(q_mean, q_logvar)
 
-        if self.hierarchical:
-            q_mean_z0, q_logvar_z0 = self.encoder_z0(x, z)
-            z0 = self.reparameterize(q_mean_z0, q_logvar_z0)
-
-        # Reconstruction
-            x_logit = self.decode(tf.concat([z, z0], axis=1))
-        else:
-            x_logit = self.decode(z)
-
-        cross_ent = tf.nn.sigmoid_cross_entropy_with_logits(logits=x_logit, labels=x)
-        logpx_z = -tf.reduce_sum(cross_ent, axis=[1, 2, 3])
-
         # Prior
         if self.vampprior:
             pseudo_inputs = self.pseudo_inputs_layer(x)
@@ -126,12 +114,21 @@ class Vae(tf.keras.Model):
         logqz_x = log_normal_pdf(z=z, z_mean=q_mean, z_logvar=q_logvar, mean=q_mean, logvar=q_logvar, expected_value=self.expected_value)
 
         if self.hierarchical:
+            q_mean_z0, q_logvar_z0 = self.encoder_z0(x, z)
+            z0 = self.reparameterize(q_mean_z0, q_logvar_z0)
             p_mean_z0, p_logvar_z0 = self.p_z0(self.connect_z0(z))
             logpz0 = log_normal_pdf(z=z0, z_mean=q_mean_z0, z_logvar=q_logvar_z0, mean=p_mean_z0, logvar=p_logvar_z0, expected_value=self.expected_value)
             logqz0_x = log_normal_pdf(z=z0, z_mean=q_mean_z0, z_logvar=q_logvar_z0, mean=q_mean_z0, logvar=q_logvar_z0, expected_value=self.expected_value)
+
             kl_loss = -tf.reduce_mean(logpz + logpz0 - logqz_x - logqz0_x)
+            x_logit = self.decode(tf.concat([z, z0], axis=1))
         else:
             kl_loss = -tf.reduce_mean(logpz - logqz_x)
+            x_logit = self.decode(z)
+
+        cross_ent = tf.nn.sigmoid_cross_entropy_with_logits(logits=x_logit, labels=x)
+        logpx_z = -tf.reduce_sum(cross_ent, axis=[1, 2, 3])
+
         recon_loss = -tf.reduce_mean(logpx_z)
         return recon_loss, kl_loss
 
