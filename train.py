@@ -190,6 +190,26 @@ plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
 plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding_mean.png')
 plt.close()
 
+###### Plot reconstructed data #####
+# first n samples of each digit
+n = 10
+img_idx = [np.where(y_val == i)[0][j] for i in range(10) for j in range(n)]
+
+merged_img = np.zeros((28*10, 28*n))
+# pdb.set_trace()
+for idx, image in enumerate(decoded_imgs[img_idx]):
+    j = int(idx % n)  # j-th sample of i-th class
+    i = int(idx / n)
+    merged_img[i*28:(i+1)*28, j*28:(j+1)*28] = np.squeeze(image, axis=2)
+fig = plt.figure()
+ax = plt.axes()
+plt.imshow(merged_img)
+plt.gray()
+ax.get_xaxis().set_visible(False)
+ax.get_yaxis().set_visible(False)
+plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_reconmanifold.png')
+plt.show()
+
 # Plot evaluation
 n = 10
 plt.figure(figsize=(20, 4))
