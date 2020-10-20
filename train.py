@@ -9,6 +9,8 @@ import os
 from models.vae import Vae
 from utils.utilities import preprocess_images
 
+import umap
+
 import pickle
 
 
@@ -26,7 +28,7 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=128,
                         help='Batch size for SGD.')
     parser.add_argument('--data_set', type=str, default='mnist',
-                        help='Data set: [mnist, fashion_mnist]')
+                        help='Data set: [mnist, fashionmnist]')
     parser.add_argument('--latent_dim', type=int, default=2,
                         help='Dimension of the latent space or bottleneck.')
     parser.add_argument('--factor', type=float, default=1,
@@ -51,7 +53,7 @@ val_size = 10000
 training_id = f'{args.data_set}_{args.model}_{args.prior}_bs{args.batch_size}_dim{args.latent_dim}_factor{args.factor}_epochs{args.epochs}'
 
 # Load the dataset
-if args.data_set == 'fashion_mnist':
+if args.data_set == 'fashionmnist':
     (train_images, _), (val_images, y_val) = tf.keras.datasets.fashion_mnist.load_data()
 elif args.data_set == 'mnist':
     (train_images, _), (val_images, y_val) = tf.keras.datasets.mnist.load_data()
@@ -169,14 +171,18 @@ with open(f'gridsearch/{args.gs_key}/results/{training_id}_embedding.pickle', 'w
 decoded_imgs = vae(val_images).numpy()
 #pseudo_inputs = vae.pseudo_inputs_layer(val_images).numpy()
 
-# Plot umap z
+# Apply uniform manifold approximation and projection (UMAP) to visualize higher dimensional latent spaces
+if args.latent_dim > 2:
+    z = umap.UMAP(n_neighbors=30).fit_transform(z)
+
+# Plot embedding z
 plt.scatter(z[:, 0], z[:, 1], c=y_val, cmap='Spectral', s=5)
 plt.gca().set_aspect('equal', 'datalim')
 plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
 plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
 plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding_z.png')
 plt.close()
-# Plot umap mean
+# Plot mean embedding
 plt.scatter(mean[:, 0], mean[:, 1], c=y_val, cmap='Spectral', s=5)
 plt.gca().set_aspect('equal', 'datalim')
 plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
