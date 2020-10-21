@@ -1,14 +1,14 @@
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 
 import datetime, time
 import argparse
 import os
 from models.vae import Vae
 from utils.utilities import preprocess_images
-
+from utils.sys_utils import make_directories, pickle_save
+from utils.plot_utils import plot_embedding, plot_reconstructed
 import umap
 
 import pickle
@@ -18,24 +18,24 @@ def parse_args():
     desc = "Tensorflow 2.0 implementation of a VAE with a VampPrior"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--model', type=str, default='vae',
-                        help='Type of autoencoder: [vae, hvae]')
+                        help='Type of variational autoencoder: [vae, hvae]')
     parser.add_argument('--prior', type=str, default='standard',
                         help='Type of prior: [standard, vamp]')
     parser.add_argument('--lr', type=float, default=1e-4,
                         help='Learning rate.')
-    parser.add_argument('--epochs', type=int, default=30,
+    parser.add_argument('--epochs', type=int, default=250,
                         help='Number of train set run-throughs.')
-    parser.add_argument('--batch_size', type=int, default=128,
+    parser.add_argument('--batch_size', type=int, default=256,
                         help='Batch size for SGD.')
     parser.add_argument('--data_set', type=str, default='mnist',
                         help='Data set: [mnist, fashionmnist]')
     parser.add_argument('--latent_dim', type=int, default=2,
                         help='Dimension of the latent space or bottleneck.')
-    parser.add_argument('--factor', type=float, default=1,
-                        help='Factor that determines the number of filters.')
+    parser.add_argument('--network_size', type=float, default=4,
+                        help='Factor that determines the number of filters of the convolutional layers.')
     # parser.add_argument('--sample_mode', type=str, default='mc',
     #                     help='Mode to estimate KL divergence: [mc, expectation]')
-    parser.add_argument('--gs_key', type=str, default='default',
+    parser.add_argument('--gs_key', type=str, default=None,
                         help='Grid search key for saving of results and images.')
     parser.add_argument('--activation', type=str, default='relu',
                         help='Activation function.')
@@ -50,7 +50,7 @@ apply_filter = False
 input_shape = (28, 28, 1)
 train_size = 60000
 val_size = 10000
-training_id = f'{args.data_set}_{args.model}_{args.prior}_bs{args.batch_size}_dim{args.latent_dim}_factor{args.factor}_epochs{args.epochs}'
+training_id = f'{args.data_set}_{args.model}_{args.prior}_bs{args.batch_size}_dim{args.latent_dim}_size{args.network_size}_epochs{args.epochs}'
 
 # Load the dataset
 if args.data_set == 'fashionmnist':
@@ -78,7 +78,7 @@ vae = Vae(
     input_shape=input_shape,
     latent_dim=args.latent_dim,
     activation=args.activation,
-    filter_factor=args.factor,
+    filter_factor=args.network_size,
     hierarchical=(args.model == 'hvae'),
     vampprior=(args.prior == 'vamp'),
     data_set=args.data_set
@@ -119,7 +119,7 @@ train_recon_loss = tf.keras.metrics.Mean()
 val_kl_loss = tf.keras.metrics.Mean()
 val_recon_loss = tf.keras.metrics.Mean()
 
-results = {
+history = {
     'train_kl_loss': [],
     'train_recon_loss': [],
     'val_kl_loss': [],
@@ -142,92 +142,48 @@ for epoch in range(1, args.epochs + 1):
         f'Recon loss: {val_recon_loss.result():.2f} | time: {end_time - start_time:.2f}')
 
     # Log results and reset metrics
-    results['train_kl_loss'].append(train_kl_loss.result().numpy())
-    results['train_recon_loss'].append(train_recon_loss.result().numpy())
-    results['val_kl_loss'].append(val_kl_loss.result().numpy())
-    results['val_recon_loss'].append(val_recon_loss.result().numpy())
+    history['train_kl_loss'].append(train_kl_loss.result().numpy())
+    history['train_recon_loss'].append(train_recon_loss.result().numpy())
+    history['val_kl_loss'].append(val_kl_loss.result().numpy())
+    history['val_recon_loss'].append(val_recon_loss.result().numpy())
 
     train_kl_loss.reset_states()
     train_recon_loss.reset_states()
     val_kl_loss.reset_states()
     val_recon_loss.reset_states()
 
-# Save results dictionary
-with open(f'gridsearch/{args.gs_key}/results/{training_id}_history.pickle', 'wb') as f:
-    pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
-with open(f'gridsearch/{args.gs_key}/results/{training_id}_args.pickle', 'wb') as f:
-    pickle.dump(vars(args), f, protocol=pickle.HIGHEST_PROTOCOL)
-
+# compute embedding
 val_images = preprocess_images(val_images)
 mean, logvar = vae.encode(val_images)
 z = vae.reparameterize(mean, logvar)
 embedding = {'z': z.numpy(), 'mean': mean.numpy(), 'logvar': logvar.numpy()}
 
-with open(f'gridsearch/{args.gs_key}/results/{training_id}_embedding.pickle', 'wb') as f:
-    pickle.dump(embedding, f, protocol=pickle.HIGHEST_PROTOCOL)
+# create directories to save results: history, args and embedding
+if args.gs_key is None:
+    # create grid search key by date
+    args.gs_key = datetime.date.today().strftime("%m%d")
+gs_path = os.path.join('gridsearch', args.gs_key)
+make_directories(gs_path, ['img', 'results'])
 
-# Evaluate trained VAE
+pickle_save(obj=history, path=os.path.join(gs_path, 'results'), filename=f'{training_id}_history')
+pickle_save(obj=vars(args), path=os.path.join(gs_path, 'results'), filename=f'{training_id}_args')
+pickle_save(obj=embedding, path=os.path.join(gs_path, 'results'), filename=f'{training_id}_embedding')
 
-decoded_imgs = vae(val_images).numpy()
-#pseudo_inputs = vae.pseudo_inputs_layer(val_images).numpy()
+# pseudo_inputs = vae.pseudo_inputs_layer(val_images).numpy()
 
 # Apply uniform manifold approximation and projection (UMAP) to visualize higher dimensional latent spaces
 if args.latent_dim > 2:
     z = umap.UMAP(n_neighbors=30).fit_transform(z)
 
 # Plot embedding z
-plt.scatter(z[:, 0], z[:, 1], c=y_val, cmap='Spectral', s=5)
-plt.gca().set_aspect('equal', 'datalim')
-plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
-plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
-plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding_z.png')
-plt.close()
+plot_embedding(
+    z, y_val, title_str=f'2D-latent space of {args.data_set}',
+    save_str=os.path.join(gs_path, 'img', f'{training_id}_embedding_z'))
 # Plot mean embedding
-plt.scatter(mean[:, 0], mean[:, 1], c=y_val, cmap='Spectral', s=5)
-plt.gca().set_aspect('equal', 'datalim')
-plt.colorbar(boundaries=np.arange(11)-0.5).set_ticks(np.arange(10))
-plt.title(f'2D-latent space of {args.data_set}', fontsize=24)
-plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_embedding_mean.png')
-plt.close()
+plot_embedding(
+    mean, y_val, title_str=f'2D-latent space of {args.data_set}',
+    save_str=os.path.join(gs_path, 'img', f'{training_id}_embedding_mean'))
 
-###### Plot reconstructed data #####
-# first n samples of each digit
-n = 10
-img_idx = [np.where(y_val == i)[0][j] for i in range(10) for j in range(n)]
-
-merged_img = np.zeros((28*10, 28*n))
-# pdb.set_trace()
-for idx, image in enumerate(decoded_imgs[img_idx]):
-    j = int(idx % n)  # j-th sample of i-th class
-    i = int(idx / n)
-    merged_img[i*28:(i+1)*28, j*28:(j+1)*28] = np.squeeze(image, axis=2)
-fig = plt.figure()
-ax = plt.axes()
-plt.imshow(merged_img)
-plt.gray()
-ax.get_xaxis().set_visible(False)
-ax.get_yaxis().set_visible(False)
-plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}_reconmanifold.png')
-plt.show()
-
-# Plot evaluation
-n = 10
-plt.figure(figsize=(20, 4))
-for i in range(n):
-    # display original
-    ax = plt.subplot(2, n, i + 1)
-    plt.imshow(np.squeeze(val_images[i], axis=2))
-    plt.title('original')
-    plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-
-    # display reconstruction
-    ax = plt.subplot(2, n, i + 1 + n)
-    plt.imshow(np.squeeze(decoded_imgs[i], axis=2))
-    plt.title('reconstructed')
-    plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-plt.savefig(f'gridsearch/{args.gs_key}/img/{training_id}.png')
-plt.show()
+# Plot reconstructed data
+decoded_imgs = vae(val_images).numpy()
+plot_reconstructed(decoded_imgs, y_val, save_str=os.path.join(gs_path, 'img', f'{training_id}_reconmanifold'))
