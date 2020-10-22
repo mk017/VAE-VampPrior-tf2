@@ -29,14 +29,6 @@ python train.py --latent_dim 2 --model <vae or hvae> --prior <standard or vamp> 
 </tr>
 </table>
 
-<div align='center'>
-    <img src = 'img/mnist_input.png' height = '100px'>
-    <img src = 'img/mnist_vae_standard_bs256_dim2_factor16.0_epochs250_reconmanifold.png' height = '100px'>
-    <img src = 'img/mnist_vae_vamp_bs256_dim2_factor16.0_epochs250_reconmanifold.png' height = '100px'>
-    <img src = 'img/mnist_hvae_standard_bs256_dim2_factor16.0_epochs250_reconmanifold.png' height = '100px'>
-    <img src = 'img/mnist_hvae_vamp_bs256_dim2_factor16.0_epochs250_reconmanifold.png' height = '100px'>
-</div>
-
 #### Latent Space
 <table align="center">
 <tr align='center'>

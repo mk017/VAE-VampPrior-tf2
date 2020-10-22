@@ -11,8 +11,6 @@ from utils.sys_utils import make_directories, pickle_save
 from utils.plot_utils import plot_embedding, plot_reconstructed
 import umap
 
-import pickle
-
 
 def parse_args():
     desc = "Tensorflow 2.0 implementation of a VAE with a VampPrior"
